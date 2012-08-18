@@ -1,8 +1,9 @@
 require "parsing_ymarket/version"
 require 'nokogiri'
 require 'open-uri'
+module ParsingYmarket 
 
-class ParsingYmarket
+class Parsing
 	BASIC_URL='http://market.yandex.ua'
 
     attr_reader :name, :model_id, :image, :images, :description, :thumb, :characteristics, :comment
@@ -214,5 +215,7 @@ class ParsingYmarket
   #   !!doc.css("div.b-switcher")
   # end
 
+
+end
 
 end
