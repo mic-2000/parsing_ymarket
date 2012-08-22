@@ -1,0 +1,23 @@
+[31mF[0m[31mF[0m
+
+Failures:
+
+  1) Parsing_Ymarket Comment should return ArgumentError if not argument
+     [31mFailure/Error:[0m [31mdata = open('./comment.htm')[0m
+     [31mErrno::ENOENT:[0m
+       [31mNo such file or directory - ./comment.htm[0m
+[36m     # ./spec/parsing_ymarket_spec.rb:48:in `block (3 levels) in <top (required)>'[0m
+
+  2) Parsing_Ymarket Comment should return ArgumentError if argument not 'Nokogiri::XML::Element'
+     [31mFailure/Error:[0m [31mdata = open('./comment.htm')[0m
+     [31mErrno::ENOENT:[0m
+       [31mNo such file or directory - ./comment.htm[0m
+[36m     # ./spec/parsing_ymarket_spec.rb:48:in `block (3 levels) in <top (required)>'[0m
+
+Finished in 0 seconds
+[31m2 examples, 2 failures[0m
+
+Failed examples:
+
+[31mrspec ./spec/parsing_ymarket_spec.rb:39[0m [36m# Parsing_Ymarket Comment should return ArgumentError if not argument[0m
+[31mrspec ./spec/parsing_ymarket_spec.rb:43[0m [36m# Parsing_Ymarket Comment should return ArgumentError if argument not 'Nokogiri::XML::Element'[0m

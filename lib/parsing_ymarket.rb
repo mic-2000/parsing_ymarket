@@ -1,10 +1,47 @@
-require "parsing_ymarket/version"
+# require "parsing_ymarket/version"
 require 'nokogiri'
 require 'open-uri'
-module ParsingYmarket 
+
+module Parsing_Ymarket
+
+BASIC_URL='http://market.yandex.ua'
+
+def format_url(url)
+  return url if url.include?(".yandex.")		
+  return BASIC_URL + '/' + url unless url[0] == '/'
+  BASIC_URL+url
+end
+
+def open_url(url)		
+	data = open(format_url(url))
+    doc = Nokogiri::HTML(data)
+end
+
+def product_link?(url)
+	url.to_s.include?('modelid')
+end
+
+def modelid(url)
+  url[/(modelid=)\d+/][8..-1] if !url[/(modelid=)\d+/].nil?
+end
+
+def pagination(url_category)
+  next_url = [url_category]
+  url=''
+  while url != next_url.last do
+    url=next_url.last
+    data = open(format_url(url))
+    doc = Nokogiri::HTML(data)
+    next_url << [url_category] unless next_url.include?(url_category)
+    doc.css('div.b-pager__pages').search('a').each do |url|
+      next_url << url['href'] unless next_url.include?(url['href'])
+    end
+  end
+  next_url
+end
 
 class Parsing
-	BASIC_URL='http://market.yandex.ua'
+
 
     attr_reader :name, :model_id, :image, :images, :description, :thumb, :characteristics, :comment
 
@@ -37,30 +74,9 @@ class Parsing
 	  	value.merge!(parse_product(value[:url]))
 	  end
 
-	  # product={}
-	  # doc.css('h3.b-offers__title a').each do |product_name|
-	  #   product[product_name.inner_text.to_sym](product_name['href'])
-	  # end
-	  # puts product
-
 	end
 
-	def pagination(url_category)
-	  next_url = [url_category]
-	  url=''
-	  while url != next_url.last do
-	    url=next_url.last
-	    data = open(format_url(url))
-	    doc = Nokogiri::HTML(data)
 
-	    next_url << [url_category] unless next_url.include?(url_category)
-	    doc.css('div.b-pager__pages').search('a').each do |url|
-	      next_url << url['href'] unless next_url.include?(url['href'])
-	    end
-
-	  end
-	  next_url
-	end
 
 	def format_url(url)
 	  return url if url.include?(".yandex.")		
@@ -90,9 +106,7 @@ class Parsing
 	      	  :short_descr => product_name.css('p.b-offers__spec').inner_text  })
 	      end
 	    end
-
 	  end
-
 	  products
 	end
 
@@ -109,74 +123,24 @@ class Parsing
 	  @discription = doc.css("ul.b-vlist li").collect do |discr|
 	  	discr.inner_text+"\n"
 	  end
-	  @characteristics = parse_characteristics(doc.css("p.b-model-friendly__title a").first['href'])
-	  @comment = parse_comments(url)
+	  @characteristics = Characteristics.new(doc.css("p.b-model-friendly__title a").first['href'])
+	  @comments = parse_comments(url)
 	  res = Hash[:name => @name, :image => @image, :discription => @discription, :characteristics =>@characteristics, :comment => @comment]
 	end
 
-  # парсилка характеристик со страницы товара
-	def parse_characteristics(url)
-      if !url.include?('model-spec.xml')
-      	puts 'incorrect link'
-      	return
-      end			
-	  doc = open_url(url)
-	  res = Array.new()
-	  doc.css('table.b-properties').each do |table|
-	    table.css('tr').each do |tr|
-	      if tr.css('th').first['class'].include?('b-properties__label')
-	      	res << Hash[tr.css('th').inner_text, tr.css('td').inner_text]
-	      end	      
-	    end
-	  end
-	  res
-	end
 
- # парсилка коментов со страницы товара
-	def parse_comments(url)	
-	  if !product_link?(url)
-      	puts 'incorrect link'
-      	return
-      end			
-	  doc = open_url(url)		
-	  res = Array.new		
-	  if !doc.css('a.b-user-opinions__all').empty?
-		all_comments=pagination(doc.css('a.b-user-opinions__all').first['href'])
-		all_comments.each do |url|
-		  doc = open_url(url)
-		  doc.css('div.b-grade').each do |comment|
-		  	res << parse_comment(comment)
-		  end
-		end
-	  elsif !doc.css('div.b-opinions').empty?
-	    doc.css('div.b-opinions').each do |comment|
-	      data = Hash.new	
-	  	  data[:user] = comment.css('b.b-user').last.inner_text
-	  	  data[:opinion] = comment.css('div.b-opinions__text').collect do |commm|
-			commm.inner_text+"\n" if !commm.css('p').empty?
-		  end
-	  	  data[:comment] = comment.css('div.b-opinions__text').collect do |commm|
-			commm.inner_text+"\n" if commm.css('p').empty?
-		  end
-	  	  data[:rating] = comment.css('div.grade').css('span.b-rating__star-other').size
-	  	  res << data
-	  	end
-	  end
-	  res.uniq
-	end
 
-	def parse_comment(comment)
-	  data = Hash.new	
-	  data[:user] = comment.css('b.b-user').inner_text
-	  data[:opinion] = comment.css('p.user-opinion').inner_text
-	  data[:comment] = comment.css('div.data').css('p').last.inner_text if comment.css('div.data').css('p').last['class'].nil?
-	  data[:rating] = comment.css('div.grade').css('span.b-rating__star-other').size
-	  data
-	end
 
-	def modelid(url)
-	  url[/(modelid=)\d+/][8..-1] if !url[/(modelid=)\d+/].nil?
-	end
+	# def parse_comment(comment)
+	#   data = Hash.new	
+	#   data[:user] = comment.css('a.b-user__link').inner_text
+
+	#   data[:opinion] = comment.css('p.user-opinion').inner_text
+	#   data[:comment] = comment.css('div.data').css('p').last.inner_text if comment.css('div.data').css('p').last['class'].nil?
+	#   data[:rating] = comment.css('div.grade').css('span.b-rating__star-other').size
+	#   data
+	# end
+
 
 
 
@@ -194,28 +158,108 @@ class Parsing
 # проверки
 
   # страница с товаром?
-  def product_link?(url)
-    url.to_s.include?('modelid')
+
+
+
+end
+
+class Product
+	attr_reader :model_id, :name, :image, :description, :characteristics, :comments
+
+	def initialize(url)
+	  unless product_link?(url)
+	  	raise 'incorrect url'
+	  end
+	  doc = open_url(url)
+	  @model_id = modelid(url)
+	  @name = doc.css('h1.b-page-title').children.first.inner_text
+	  @image = doc.css(".b-model-pictures").css("img").first['src'] if doc.css(".b-model-pictures").css("img").first['src']
+	  @discription = doc.css("ul.b-vlist li").collect do |discr|
+	  	discr.inner_text+"\n"
+	  end
+	  @characteristics = parse_characteristics(doc.css("p.b-model-friendly__title a").first['href'])
+	  @comments = parse_comments(url)
+	  # res = Hash[:name => @name, :image => @image, :discription => @discription, :characteristics =>@characteristics, :comment => @comment]
   end
 
-  # # На странице один товар?
-  # def self.product?(doc)
-  #   !!doc.css("h1.b-page-title")
-  # end
+  #парсилка характеристик со страницы товара
+  def parse_characteristics(url)
+    if !url.include?('model-spec.xml')
+      puts 'incorrect link'
+      return
+    end
+    doc = open_url(url)
+    res = Array.new()
+    doc.css('table.b-properties').each do |table|
+      table.css('tr').each do |tr|
+        if tr.css('th').first['class'].include?('b-properties__label')
+          res << Hash[tr.css('th').inner_text, tr.css('td').inner_text]
+        end
+      end
+    end
+    res
+  end
+
+# парсилка коментов со страницы товара
+  def parse_comments(url)
+    if !product_link?(url)
+      puts 'incorrect link'
+      return
+    end
+    doc = open_url(url)
+    res = Array.new
+    if !doc.css('a.b-user-opinions__all').empty?
+      all_comments=pagination(doc.css('a.b-user-opinions__all').first['href'])
+      all_comments.each do |url|
+        doc = open_url(url)
+        doc.css('div.b-grade').each do |comment|
+          res << Comment.new(comment)
+        end
+      end
+    elsif !doc.css('div.b-opinions').empty?
+      doc.css('div.b-opinions').each do |comment|
+        res <<  Comment.new(comment)
+      end
+    end
+    res.uniq
+  end
+end
 
 
-  # # Страница бренда?
-  # def self.brand?(doc)
-  #   !!doc.css("div.block-header")
-  # end
 
+class Comment
+	attr_reader :user, :opinion, :comment, :rating
 
-  # # Страница со списком товаров
-  # def self.products?(doc)
-  #   !!doc.css("div.b-switcher")
-  # end
+	def initialize(comment)
+	  unless comment.class == Nokogiri::XML::Element	
+	  	raise ArgumentError
+	  end
 
+	  @user = comment.css('b.b-user').inner_text
 
+	  if comment.css('p.user-opinion').empty?
+	  	@opinion = comment.css('div.b-opinions__text').collect do |commm|
+			commm.inner_text+"\n" if !commm.css('p').empty?
+		end
+	  else
+	  	@opinion = comment.css('p.user-opinion').collect do |commm|
+			commm.inner_text+"\n"
+		end	  		
+	  end
+
+	  if comment.css('div.b-opinions__text').empty?
+	  	@comment = comment.css('div.data').css('p').last.inner_text if comment.css('div.data').css('p').last['class'].nil?
+	  else
+	  	@comment = comment.css('div.b-opinions__text').collect do |commm|
+			commm.inner_text+"\n" if commm.css('p').empty?
+		end
+	  end		
+
+	  @rating = comment.css('div.grade').css('span.b-rating__star-other').size
+
+	end
 end
 
 end
+
+
