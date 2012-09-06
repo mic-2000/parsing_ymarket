@@ -1,58 +1,37 @@
 require 'spec_helper'
 
-describe Parsing_Ymarket do
+describe Parsing do
+	context "Search product by name" do
+	  samsung = Parsing.new
+	  samsung.find('Samsung Galaxy Pocket S5300')
 
-	context "Parsing" do 
-		# context "#name" do
-		# 	it "should return gem name" do
-		# 		ParsingYmarket.name == "parsing_ymarket"
-		# 	end
-		# end
-	end
-
-#
-describe "Product" do
-
-	it "should ruturn ArgumentError unless argument" do
-		expect { Product.new }.to raise_error(ArgumentError)
-	end
-
-	it "should ruturn 'incorect url' if not model-spec page" do
-		url='http://market.yandex.ua/model.xml'
-		expect { Product.new(url) }.to raise_error('incorrect url')
-	end
-
-	it "should return not empty array" do
-		url='http://market.yandex.ua/model.xml?CMD=-RR=9,0,0,0-PF=1801946~EQ~sel~1871127-PF=2142398356~EQ~sel~316113815-PF=1801946~EQ~sel~1871127-PF=2142398356~EQ~sel~316113815-VIS=70-CAT_ID=432460-EXC=1-PG=10&modelid=7153786&hid=91013'
-
-		obj.name.should_not be_empty
-	end
-
-
-end
-
-	context "Comment" do
-
-		it "should return ArgumentError if not argument" do
-			expect { Comment.new }.to raise_error(ArgumentError)
+		it "should return the first matching product" do
+			samsung.product.should_not be_nil
 		end
-
-		it "should return ArgumentError if argument not 'Nokogiri::XML::Element'" do
-			expect { Comment.new("url") }.to raise_error(ArgumentError)
+		it "should return correct product name" do
+			samsung.product.name.should == "Samsung Galaxy Pocket S5300"
 		end
-
-		before do 			
-			data = open('./html/comments.htm')
-		  doc = Nokogiri::XML(data)
-			@comment = Comment.new(doc.css('div.b-grade').first)
+		it "should return array of product characteristics" do
+			samsung.product.characteristics.class.should == Array
+			samsung.product.characteristics.size.should > 0
 		end
-
-		it "user not be nil" do
-			@comment.user.should_not be_nil
+		it "should return array of product comments" do
+			samsung.product.comments.class.should == Array
+			samsung.product.comments.size.should > 0
 		end
+		it "should return the name of the first commentator of product" do
+			samsung.product.comments.first.user.should_not be_nil
+		end
+	end
+	context "Parsing of products by guru filter" do
+	  url='http://market.yandex.ua/guru.xml?CMD=-RR=9,0,0,0-PF=2139571715~TR~sel~select-PF=1801946~EQ~sel~1871127-VIS=70-CAT_ID=432460-EXC=1-PG=10&hid=91013'
+	  parsing = Parsing.new
+	  parsing.url_filter(url)
 
-
+	  it "should return array of products" do
+	  	parsing.products.class.should == Array
+	  	parsing.products.first.class.should == ParsingYmarket::Parsing::Product
+	  end
 
 	end
-
 end
